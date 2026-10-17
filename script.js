@@ -142,7 +142,7 @@ const AVATAR_COLORS = [
 // 2. 애플리케이션 상태 (State) & 로컬 스토리지 연동
 // ============================================================================
 
-const STORAGE_KEY = "classtube_role_allocator_v2";
+const STORAGE_KEY = "classtube_role_allocator_v3";
 
 let state = {
   classTitle: "3학년 2반 우리들의 소중한 역할",
@@ -152,7 +152,7 @@ let state = {
   isAssigned: false,
   soundEnabled: true,
   appsScriptUrl: "",
-  theme: "light",
+  theme: "dark",
   currentFilter: "all",
   searchKeyword: ""
 };
@@ -225,10 +225,10 @@ function renderRoleCards() {
 
   if (filteredRoles.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1 / -1; text-align: center; padding: 48px 16px; color: var(--yt-text-secondary);">
-        <p style="font-size: 32px; margin-bottom: 8px;">🔍</p>
-        <p style="font-size: 16px; font-weight: 700;">검색 결과가 없습니다.</p>
-        <p style="font-size: 13px; margin-top: 4px;">다른 검색어를 입력하거나 필터를 '전체'로 변경해 보세요.</p>
+      <div style="grid-column: 1 / -1; text-align: center; padding: 56px 16px; color: var(--yt-text-secondary);">
+        <p style="font-size: 36px; margin-bottom: 10px;">🔍</p>
+        <p style="font-size: 18px; font-weight: 700;">검색 결과가 없습니다.</p>
+        <p style="font-size: 14px; margin-top: 4px;">다른 검색어를 입력하거나 필터를 '전체'로 변경해 보세요.</p>
       </div>
     `;
     return;
@@ -246,14 +246,21 @@ function renderRoleCards() {
     const avatarGradient = AVATAR_COLORS[idx % AVATAR_COLORS.length];
 
     card.innerHTML = `
-      <!-- 16:9 YouTube Thumbnail -->
-      <div class="yt-thumbnail-wrapper" title="${escapeHtml(role.name)} 자세히 보기">
+      <!-- 16:9 YouTube Thumbnail (Large & Cinematic) -->
+      <div class="yt-thumbnail-wrapper" title="${escapeHtml(role.name)} - ${escapeHtml(role.duty || '')}">
         <div class="yt-thumbnail-content">
           <div class="yt-thumb-center">
             <span class="yt-thumb-emoji">${role.emoji || "✨"}</span>
             <span class="yt-thumb-title">${escapeHtml(role.name)}</span>
           </div>
+          
+          <!-- YouTube Play Button Hover Overlay -->
+          <div class="yt-play-hover-btn" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+          </div>
+
           <span class="yt-card-index-badge">#${idx + 1}</span>
+          <span class="yt-hd-badge">HD</span>
           <span class="yt-duration-badge">${escapeHtml(role.duration || "상시 활동")}</span>
           <div class="yt-thumb-progress"></div>
         </div>
@@ -273,7 +280,7 @@ function renderRoleCards() {
               ${studentName ? escapeHtml(studentName) : "배정 대기 중 🕒"}
             </span>
             ${studentName ? `
-              <svg viewBox="0 0 24 24" class="yt-check-icon" title="역할 임명 완료 크리에이터">
+              <svg viewBox="0 0 24 24" class="yt-check-icon" title="공식 임명 완료">
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM9.8 17.3l-4.2-4.1 1.4-1.4 2.8 2.7 7.4-7.4 1.4 1.4-8.8 8.8z"></path>
               </svg>
             ` : ''}
