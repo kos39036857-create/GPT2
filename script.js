@@ -972,31 +972,59 @@ function setupSheetIntegration() {
     showToast("기본 12명 데이터로 리셋되었습니다.", "🌱");
   });
 
-  // [시트로 전송]
+  // [시트로 자동 전송]
   document.getElementById("btnPostToAppsScript").addEventListener("click", async () => {
     const url = inputPostUrl.value.trim();
     if (!url) {
-      alert("Apps Script 웹 앱 URL을 입력해 주세요!");
+      alert("Apps Script 웹 앱 URL을 입력해 주세요!\n(또는 [📋 시트용 표 복사] 버튼을 이용해 스프레드시트에 바로 붙여넣으실 수 있습니다.)");
       return;
     }
+
+    // 사용자가 스프레드시트 문서 주소를 넣은 경우 안내
+    if (url.includes("docs.google.com/spreadsheets")) {
+      alert(
+        "💡 입력하신 주소는 '구글 스프레드시트 문서 주소'입니다.\n\n" +
+        "구글 보안 정책상 웹에서 스프레드시트에 자동으로 내용을 기록(저장)하려면,\n" +
+        "모달 아래에 안내된 [Apps Script 코드]를 1회 배포하신 웹 앱 URL(script.google.com/...)이 필요합니다.\n\n" +
+        "⭐ 가장 빠르고 간편한 방법:\n" +
+        "지금 바로 [📋 시트용 표 복사 (Ctrl+V용)] 버튼을 누르신 뒤,\n" +
+        "구글 스프레드시트 화면에서 A1 셀을 누르고 Ctrl+V를 누르시면 1초 만에 완벽한 표 형태로 기록됩니다!"
+      );
+      return;
+    }
+
     state.appsScriptUrl = url;
     saveStateToStorage();
-    showToast("스프레드시트로 배정 결과를 업로드하는 중...", "💾");
+    showToast("스프레드시트로 배정 결과를 전송 중...", "💾");
 
     const payload = generateExportData();
     try {
       await fetch(url, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       });
       modalSave.classList.add("hidden");
-      showToast("🚀 스프레드시트에 결과가 성공적으로 전송되었습니다!", "✅");
+      showToast("🚀 스프레드시트로 전송 완료! ('1인1역할_배정결과' 탭을 확인해 보세요)", "✅");
     } catch (err) {
-      alert(`전송 실패: ${err.message}`);
+      alert(`전송 중 오류 발생: ${err.message}\n[📋 시트용 표 복사] 버튼을 누른 후 스프레드시트에 직접 Ctrl+V를 해보세요!`);
     }
   });
+
+  // [📋 Apps Script 코드 복사 버튼]
+  const btnCopyAppsScriptCode = document.getElementById("btnCopyAppsScriptCode");
+  if (btnCopyAppsScriptCode) {
+    btnCopyAppsScriptCode.addEventListener("click", () => {
+      const codeBlock = document.getElementById("appsScriptCodeBlock");
+      const codeText = codeBlock ? codeBlock.textContent : "";
+      navigator.clipboard.writeText(codeText).then(() => {
+        showToast("📋 Apps Script 코드가 복사되었습니다! 스프레드시트에 붙여넣으세요.", "💡");
+      }).catch(() => {
+        showToast("코드 복사 실패: 수동으로 코드를 복사해 주세요.", "⚠️");
+      });
+    });
+  }
 
   // CSV 다운로드 핸들러
   const downloadCSV = () => {
@@ -1014,13 +1042,16 @@ function setupSheetIntegration() {
   document.getElementById("btnDownloadCSVModal").addEventListener("click", downloadCSV);
   document.getElementById("btnExportCSV").addEventListener("click", downloadCSV);
 
-  // 클립보드 복사 핸들러
+  // 스프레드시트 최적화 표(TSV) 클립보드 복사 핸들러 (Ctrl+V 누르면 열 단위로 완벽하게 자동 분할)
   const copyTableToClipboard = () => {
-    const text = generateTextSummary();
-    navigator.clipboard.writeText(text).then(() => {
-      showToast("배정 결과가 복사되었습니다! (스프레드시트에 바로 붙여넣기 가능)", "📋");
+    const tsvText = generateTSVForSheet();
+    navigator.clipboard.writeText(tsvText).then(() => {
+      showToast("📋 스프레드시트용 표가 복사되었습니다! 시트에서 Ctrl+V를 누르세요.", "✅");
     }).catch(() => {
-      showToast("복사 실패: 수동으로 복사해 주세요.", "⚠️");
+      // Fallback
+      const text = generateTextSummary();
+      navigator.clipboard.writeText(text);
+      showToast("배정 결과가 복사되었습니다.", "📋");
     });
   };
 
@@ -1170,20 +1201,54 @@ function parseSheetData(rawData) {
 function generateExportData() {
   const assignedMap = new Map();
   state.assignments.forEach(a => assignedMap.set(a.roleId, a.studentName));
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const results = state.roles.map((r, idx) => ({
+    index: idx + 1,
+    roleName: r.name,
+    emoji: r.emoji || "✨",
+    duty: r.duty || "",
+    studentName: assignedMap.get(r.id) || "미배정",
+    assignedAt: dateStr
+  }));
+
+  // 스프레드시트 일괄 쓰기용 2D 배열 (헤더 포함)
+  const rows = [
+    ["번호", "역할명", "이모지", "담당 크리에이터(학생)", "활동 내용 및 주요 임무", "배정일시"],
+    ...results.map(item => [
+      item.index,
+      item.roleName,
+      item.emoji,
+      item.studentName,
+      item.duty,
+      item.assignedAt
+    ])
+  ];
 
   return {
     classTitle: state.classTitle,
     platform: "ClassTube",
-    assignedAt: new Date().toISOString(),
+    assignedAt: dateStr,
     totalStudents: state.students.length,
-    results: state.roles.map((r, idx) => ({
-      index: idx + 1,
-      roleName: r.name,
-      emoji: r.emoji,
-      duty: r.duty,
-      studentName: assignedMap.get(r.id) || "미배정"
-    }))
+    results: results,
+    rows: rows
   };
+}
+
+// 구글 스프레드시트 붙여넣기(Ctrl+V) 전용 탭 분할(TSV) 문자열 생성기
+function generateTSVForSheet() {
+  const assignedMap = new Map();
+  state.assignments.forEach(a => assignedMap.set(a.roleId, a.studentName));
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}`;
+
+  let tsv = "번호\t역할명\t이모지\t담당 크리에이터(학생)\t활동 내용 및 주요 임무\t배정일\n";
+  state.roles.forEach((r, idx) => {
+    const student = assignedMap.get(r.id) || "미배정";
+    tsv += `${idx + 1}\t${r.name}\t${r.emoji || '✨'}\t${student}\t${r.duty || '-'}\t${dateStr}\n`;
+  });
+  return tsv;
 }
 
 function generateCSV() {
@@ -1216,7 +1281,7 @@ function generateTextSummary() {
 
 function updateSavePreview() {
   const preview = document.getElementById("saveDataPreview");
-  if (preview) preview.value = generateTextSummary();
+  if (preview) preview.value = generateTSVForSheet();
 }
 
 // ============================================================================

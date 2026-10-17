@@ -390,36 +390,71 @@
         <div class="modal-header">
           <div class="modal-title-group">
             <span class="modal-icon">💾</span>
-            <h3>스프레드시트에 배정 결과 저장</h3>
+            <h3>구글 스프레드시트에 배정 결과 저장</h3>
           </div>
           <button class="modal-close-btn" data-close="sheetSaveModal">&times;</button>
         </div>
         <div class="modal-body">
           <p class="modal-desc">
-            현재 1인 1역할 배정 결과를 <strong>Google 스프레드시트</strong>로 전송하거나 CSV 파일로 저장합니다.
+            배정된 1인 1역할 결과를 <strong>구글 스프레드시트에 실시간 기록</strong>하거나 파일/클립보드로 저장합니다.
           </p>
 
+          <!-- Input 1: Apps Script Web App URL for Direct Writing -->
           <div class="input-field-group">
-            <label for="scriptPostUrl">Google Apps Script Web App URL</label>
+            <label for="scriptPostUrl">Google Apps Script Web App URL (자동 전송용)</label>
             <input type="url" id="scriptPostUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-            <span class="input-helper">배정 결과를 수신할 Apps Script 웹 앱 URL입니다.</span>
+            <span class="input-helper">
+              💡 스프레드시트에 자동 기록하려면 아래 가이드의 <strong>Apps Script doPost 코드</strong>를 배포한 URL이 필요합니다.
+            </span>
           </div>
 
           <div class="yt-modal-actions grid-3">
             <button id="btnPostToAppsScript" class="yt-btn-primary">
-              <span>🚀</span> 시트로 전송
+              <span>🚀</span> 시트로 자동 전송
+            </button>
+            <button id="btnCopyResultModal" class="yt-btn-secondary" title="스프레드시트에 바로 붙여넣을 수 있는 표 형식으로 복사">
+              <span>📋</span> 시트용 표 복사 (Ctrl+V용)
             </button>
             <button id="btnDownloadCSVModal" class="yt-btn-secondary">
               <span>📥</span> CSV 다운로드
             </button>
-            <button id="btnCopyResultModal" class="yt-btn-secondary">
-              <span>📋</span> 클립보드 복사
-            </button>
           </div>
 
+          <!-- Apps Script Save Guide -->
+          <details class="code-guide-details" open style="margin-top: 10px;">
+            <summary>💡 스프레드시트 자동 기록을 위한 Apps Script 코드 (클릭하여 열기/접기)</summary>
+            <div class="code-guide-content">
+              <p style="margin-bottom: 6px; font-size: 11px; color: var(--yt-text-secondary);">
+                스프레드시트 <strong>[확장 프로그램] → [Apps Script]</strong>에 아래 코드를 추가하고 <strong>[배포] → [새 배포 (웹 앱, 모든 사용자 액세스)]</strong> 후 발급된 URL을 위 입력창에 넣어주세요:
+              </p>
+              <pre id="appsScriptCodeBlock"><code>function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("1인1역할_배정결과") || ss.insertSheet("1인1역할_배정결과");
+    sheet.clear();
+    var payload = JSON.parse(e.postData.contents);
+    var rows = payload.rows;
+    if (rows && rows.length > 0) {
+      sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+      sheet.getRange(1, 1, 1, rows[0].length).setBackground("#e2e8f0").setFontWeight("bold");
+      sheet.autoResizeColumns(1, rows[0].length);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</code></pre>
+              <button type="button" id="btnCopyAppsScriptCode" class="yt-btn-small" style="margin-top: 6px; width: 100%;">
+                📋 위의 Apps Script 코드 복사하기
+              </button>
+            </div>
+          </details>
+
           <div class="preview-box">
-            <label>저장될 데이터 미리보기:</label>
-            <textarea id="saveDataPreview" readonly rows="5"></textarea>
+            <label>저장될 배정 데이터 미리보기:</label>
+            <textarea id="saveDataPreview" readonly rows="4"></textarea>
           </div>
         </div>
         <div class="modal-footer">
