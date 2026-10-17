@@ -1,190 +1,287 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>우리 반 1인 1역할 배정기 🎲 | 행복한 우리 교실</title>
-    <meta name="description" content="초등학교 학급을 위한 귀엽고 산뜻한 파스텔톤 1인 1역할 배정기 및 A4 게시판 인쇄 웹 애플리케이션" />
-    <meta property="og:title" content="우리 반 1인 1역할 배정기" />
-    <meta property="og:description" content="학생과 역할을 공정하게 랜덤 매칭하고 교실 게시판 부착용 A4로 인쇄하세요." />
+    <title>ClassTube 🎲 | 우리 반 1인 1역할 배정</title>
+    <meta name="description" content="유튜브 스타일의 초등학교 학급 1인 1역할 랜덤 배정 및 A4 게시판 인쇄 웹 애플리케이션" />
+    <meta property="og:title" content="ClassTube - 우리 반 1인 1역할 배정기" />
+    <meta property="og:description" content="유튜브 감성으로 재미있게 역할을 배정하고 게시판 양식으로 인쇄하세요." />
     
-    <!-- Google Fonts for Cute and Clean Korean Typography -->
+    <!-- Google Fonts: Roboto & Noto Sans KR for authentic YouTube feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <!-- External CSS -->
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <!-- Confetti Canvas for Celebration -->
+    <!-- Top YouTube Loading / Buffering Bar -->
+    <div id="ytLoadingBar" class="yt-loading-bar"></div>
+
+    <!-- Celebration Confetti Canvas -->
     <canvas id="confettiCanvas"></canvas>
 
-    <!-- App Container (Screen view) -->
-    <div class="app-wrapper no-print">
-      <!-- Top Navigation & Cloud Integration Bar -->
-      <header class="top-bar">
-        <div class="brand">
-          <span class="brand-icon">🏫</span>
-          <div class="brand-text">
-            <h1 class="brand-title">우리 반 1인 1역할 배정기</h1>
-            <p class="brand-sub">스스로 실천하고 함께 돕는 행복한 교실 🌱</p>
+    <!-- App Wrapper (Screen Only) -->
+    <div class="yt-app-layout no-print">
+      <!-- 1. YouTube Header (Masthead) -->
+      <header class="yt-header">
+        <div class="yt-header-left">
+          <button id="btnToggleSidebar" class="yt-icon-btn" title="사이드바 메뉴 토글" aria-label="메뉴">
+            <svg viewBox="0 0 24 24" class="yt-svg"><path d="M21 6H3V5h18v1zm0 5H3v1h18v-1zm0 6H3v1h18v-1z"></path></svg>
+          </button>
+          
+          <div class="yt-logo-wrap" title="ClassTube 홈으로 가기">
+            <div class="yt-play-icon">
+              <svg viewBox="0 0 24 24" class="yt-play-svg">
+                <path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.95 1.6-1.85 1.85-.47.13-1.1.22-1.9.28-.8.07-1.49.1-2.09.1L12 20c-2.19 0-3.8-.16-4.83-.44-.9-.25-1.6-.95-1.85-1.85-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L4 12c0-2.19.16-3.8.44-4.83.25-.9.95-1.6 1.85-1.85.47-.13 1.1-.22 1.9-.28.8-.07 1.49-.1 2.09-.1L12 4c2.19 0 3.8.16 4.83.44.9.25 1.6.95 1.85 1.85z" fill="#ff0000"></path>
+                <path d="M10 15l5.19-3L10 9v6z" fill="#ffffff"></path>
+              </svg>
+            </div>
+            <span class="yt-logo-text">ClassTube</span>
+            <span class="yt-country-code">KR</span>
           </div>
         </div>
 
-        <!-- Google Sheets Integration & Print Toolbar -->
-        <div class="top-actions">
-          <button id="btnSheetLoad" class="action-btn btn-sheet" title="구글 스프레드시트에서 명단 불러오기">
-            <span class="btn-icon">🔄</span>
-            <span class="btn-text">시트 불러오기</span>
+        <!-- YouTube Search Bar -->
+        <div class="yt-header-center">
+          <div class="yt-search-box">
+            <div class="yt-search-input-wrap">
+              <input type="text" id="searchInput" placeholder="역할 또는 학생 검색..." autocomplete="off" />
+              <button id="btnClearSearch" class="yt-clear-search hidden" title="검색어 지우기">&times;</button>
+            </div>
+            <button id="btnSearch" class="yt-search-btn" title="검색">
+              <svg viewBox="0 0 24 24" class="yt-svg"><path d="M20.87 20.17l-5.59-5.59A7.94 7.94 0 0 0 17 9.5a8 8 0 1 0-8 8 7.94 7.94 0 0 0 5.08-1.72l5.59 5.59a.5.5 0 0 0 .7-.7zM3 9.5a6.5 6.5 0 1 1 6.5 6.5A6.51 6.51 0 0 1 3 9.5z"></path></svg>
+            </button>
+          </div>
+          <button id="btnVoiceSearch" class="yt-icon-btn yt-mic-btn" title="음성/빠른 배정 안내">
+            <svg viewBox="0 0 24 24" class="yt-svg"><path d="M12 3c-1.66 0-3 1.34-3 3v6c0 1.66 1.34 3 3 3s3-1.34 3-3V6c0-1.66-1.34-3-3-3zm5.3 6c0 3-2.54 5.1-5.3 5.1S6.7 12 6.7 9H5c0 3.41 2.72 6.23 6 6.72V20h2v-4.28c3.28-.48 6-3.3 6-6.72h-1.7z"></path></svg>
           </button>
-          <button id="btnSheetSave" class="action-btn btn-sheet" title="구글 스프레드시트에 결과 저장하기">
-            <span class="btn-icon">💾</span>
-            <span class="btn-text">시트에 결과 저장</span>
+        </div>
+
+        <!-- YouTube Top Actions Toolbar -->
+        <div class="yt-header-right">
+          <!-- Google Sheets Buttons (Requested) -->
+          <button id="btnSheetLoad" class="yt-action-pill" title="구글 스프레드시트에서 명단 불러오기">
+            <svg viewBox="0 0 24 24" class="yt-action-svg"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+            <span>시트 불러오기</span>
           </button>
-          <button id="btnPrint" class="action-btn btn-print" title="A4 교실 게시판 양식으로 인쇄">
-            <span class="btn-icon">🖨️</span>
-            <span class="btn-text">A4 게시판 인쇄</span>
+          
+          <button id="btnSheetSave" class="yt-action-pill" title="구글 스프레드시트에 결과 저장">
+            <svg viewBox="0 0 24 24" class="yt-action-svg"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"></path></svg>
+            <span>시트 저장</span>
           </button>
+
+          <button id="btnPrint" class="yt-action-pill yt-pill-highlight" title="교실 게시판 부착용 A4 인쇄">
+            <svg viewBox="0 0 24 24" class="yt-action-svg"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"></path></svg>
+            <span>A4 인쇄</span>
+          </button>
+
+          <!-- Theme Toggle (Dark / Light) -->
+          <button id="btnThemeToggle" class="yt-icon-btn" title="다크 모드 / 라이트 모드 전환">
+            <span id="themeIcon">🌙</span>
+          </button>
+
+          <!-- Teacher Profile Avatar -->
+          <div class="yt-profile-avatar" title="담임 선생님 계정">
+            <span>선생님</span>
+          </div>
         </div>
       </header>
 
-      <!-- Class Info Banner -->
-      <section class="class-info-card">
-        <div class="class-title-group">
-          <span class="school-badge">🏫 2026학년도</span>
-          <input type="text" id="classTitleInput" class="class-title-input" value="3학년 2반 우리들의 소중한 역할" placeholder="학급 이름을 입력하세요" />
-        </div>
-        <div class="class-status-tags">
-          <span class="status-tag tag-students">
-            👨‍🎓 학생 <strong id="studentCountBadge">12</strong>명
-          </span>
-          <span class="status-tag tag-roles">
-            📋 역할 <strong id="roleCountBadge">12</strong>개
-          </span>
-          <span class="status-tag tag-match" id="matchStatusBadge">
-            ✨ 1:1 매칭 준비 완료
-          </span>
-          <button id="btnToggleSettings" class="btn-text-only">
-            ⚙️ 명단 편집 (<span id="settingsToggleText">열기</span>)
-          </button>
-        </div>
-      </section>
+      <!-- 2. Main App Body (Sidebar + Content) -->
+      <div class="yt-main-container">
+        <!-- YouTube Left Sidebar (Collapsible) -->
+        <aside id="ytSidebar" class="yt-sidebar">
+          <nav class="yt-nav-list">
+            <a href="#" class="yt-nav-item active" id="navHome">
+              <span class="yt-nav-icon">🏠</span>
+              <span class="yt-nav-label">홈</span>
+            </a>
+            <a href="#" class="yt-nav-item" id="navAssign">
+              <span class="yt-nav-icon">🎲</span>
+              <span class="yt-nav-label">역할 배정</span>
+              <span class="yt-nav-badge">Shorts</span>
+            </a>
+            <a href="#" class="yt-nav-item" id="navStudents">
+              <span class="yt-nav-icon">👥</span>
+              <span class="yt-nav-label">학생 명단 (<span id="sideStudentCount">12</span>)</span>
+            </a>
+            <a href="#" class="yt-nav-item" id="navRoles">
+              <span class="yt-nav-icon">📋</span>
+              <span class="yt-nav-label">역할 목록 (<span id="sideRoleCount">12</span>)</span>
+            </a>
+            <a href="#" class="yt-nav-item" id="navPrint">
+              <span class="yt-nav-icon">🖨️</span>
+              <span class="yt-nav-label">게시판 인쇄</span>
+            </a>
+          </nav>
 
-      <!-- Collapsible Settings Panel: Student & Role Management -->
-      <section id="settingsPanel" class="settings-panel collapsed">
-        <div class="settings-grid">
-          <!-- Student Manager Column -->
-          <div class="manager-card student-manager">
-            <div class="manager-header">
-              <h3>
-                <span class="mgr-icon">👧👦</span>
-                <span>학생 명단 관리</span>
-                <span class="count-pill" id="studentPill">12명</span>
-              </h3>
-              <div class="mgr-quick-actions">
-                <button id="btnResetStudents" class="btn-mini" title="기본 12명 예시 데이터로 복원">기본 예시</button>
-                <button id="btnClearStudents" class="btn-mini text-danger" title="모두 삭제">비우기</button>
-              </div>
+          <hr class="yt-sidebar-divider" />
+
+          <div class="yt-sidebar-section">
+            <h4 class="yt-sidebar-heading">구독 학생 명단 (12명)</h4>
+            <div class="yt-sub-list" id="sidebarStudentsList">
+              <!-- Dynamically populated mini student list -->
+            </div>
+          </div>
+
+          <hr class="yt-sidebar-divider" />
+
+          <div class="yt-sidebar-section">
+            <h4 class="yt-sidebar-heading">학급 채널 정보</h4>
+            <div class="yt-channel-meta">
+              <p>🏫 2026학년도 1학기</p>
+              <p>🌱 1인 1역할 책임제</p>
+              <p>✨ 공정 랜덤 매칭 알고리즘</p>
+            </div>
+          </div>
+        </aside>
+
+        <!-- YouTube Content Feed -->
+        <main class="yt-content-feed">
+          <!-- Filter Chips Bar (YouTube Tag Carousel) -->
+          <div class="yt-chips-bar">
+            <button class="yt-chip active" data-filter="all">전체</button>
+            <button class="yt-chip" data-action="assign">🎲 역할 배정하기</button>
+            <button class="yt-chip" data-action="shuffle">🔀 다시 섞기</button>
+            <button class="yt-chip" data-action="reset">🧹 배정 초기화</button>
+            <button class="yt-chip" data-filter="cleaning">🧹 청소/환경</button>
+            <button class="yt-chip" data-filter="learning">📚 학습/도서</button>
+            <button class="yt-chip" data-filter="living">🍱 생활/질서</button>
+            <button class="yt-chip" data-action="toggle-manage">⚙️ 학생·역할 관리</button>
+          </div>
+
+          <!-- YouTube Channel Banner Card (Featured Hero) -->
+          <section class="yt-channel-banner-card">
+            <div class="yt-banner-art">
+              <div class="yt-banner-badge">🏫 OFFICIAL CLASSROOM CHANNEL</div>
             </div>
             
-            <form id="addStudentForm" class="add-form">
-              <input type="text" id="newStudentInput" placeholder="새 학생 이름 입력 (예: 홍길동)" maxlength="10" />
-              <button type="submit" class="btn-add">➕ 추가</button>
-            </form>
+            <div class="yt-channel-details">
+              <div class="yt-channel-avatar-big">
+                <span>3-2</span>
+              </div>
+              <div class="yt-channel-text">
+                <div class="yt-title-row">
+                  <input type="text" id="classTitleInput" class="yt-class-title-input" value="3학년 2반 우리들의 소중한 역할" title="학급 이름 수정 가능" />
+                  <span class="yt-verified-badge" title="공식 학급 채널">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM9.8 17.3l-4.2-4.1 1.4-1.4 2.8 2.7 7.4-7.4 1.4 1.4-8.8 8.8z" fill="#606060"></path></svg>
+                  </span>
+                </div>
+                <div class="yt-meta-row">
+                  <span class="yt-handle">@happy_class_3-2</span>
+                  <span class="yt-dot">•</span>
+                  <span>학생 <strong id="studentCountBadge">12</strong>명</span>
+                  <span class="yt-dot">•</span>
+                  <span>학급 역할 <strong id="roleCountBadge">12</strong>개</span>
+                  <span class="yt-dot">•</span>
+                  <span class="yt-status-text" id="matchStatusBadge">1:1 매칭 준비 완료</span>
+                </div>
+                <p class="yt-channel-desc">
+                  친구를 배려하고 맡은 일에 최선을 다하는 우리 반 1인 1역할 배정 시스템입니다.
+                </p>
+              </div>
 
-            <div class="chips-container" id="studentChipsList">
-              <!-- Dynamically populated chips -->
-            </div>
-          </div>
-
-          <!-- Role Manager Column -->
-          <div class="manager-card role-manager">
-            <div class="manager-header">
-              <h3>
-                <span class="mgr-icon">🌟</span>
-                <span>학급 역할 관리</span>
-                <span class="count-pill" id="rolePill">12개</span>
-              </h3>
-              <div class="mgr-quick-actions">
-                <button id="btnResetRoles" class="btn-mini" title="기본 12개 예시 역할로 복원">기본 예시</button>
-                <button id="btnClearRoles" class="btn-mini text-danger" title="모두 삭제">비우기</button>
+              <!-- Main Hero Action Button: YouTube Subscribe Style -->
+              <div class="yt-channel-actions">
+                <button id="btnAssignRoles" class="yt-btn-subscribe" title="학생과 역할을 공정하게 1:1 무작위 배정합니다">
+                  <span class="yt-subscribe-icon">🎲</span>
+                  <span class="yt-subscribe-text">역할 배정하기 (구독)</span>
+                </button>
+                <button id="btnShuffleAgain" class="yt-btn-secondary" title="무작위로 다시 섞기">
+                  <span>🔀</span> 다시 섞기
+                </button>
+                <button id="btnToggleSettings" class="yt-btn-secondary" title="명단 추가/삭제">
+                  <span>⚙️</span> 명단 관리
+                </button>
               </div>
             </div>
+          </section>
 
-            <form id="addRoleForm" class="add-form role-add-form">
-              <div class="role-inputs">
-                <input type="text" id="newRoleEmoji" class="input-emoji" value="✨" maxlength="2" title="이모지" />
-                <input type="text" id="newRoleTitle" class="input-title" placeholder="역할 이름 (예: 독서 도우미)" maxlength="15" required />
-                <input type="text" id="newRoleDuty" class="input-duty" placeholder="하는 일 (예: 책을 정리해요)" maxlength="40" />
+          <!-- Collapsible Management Drawer (Students & Roles Editor) -->
+          <section id="settingsPanel" class="yt-management-panel collapsed">
+            <div class="yt-panel-inner">
+              <div class="yt-panel-header">
+                <h3>
+                  <span>⚙️</span> 학생 명단 & 역할 관리 스튜디오
+                </h3>
+                <button class="yt-close-panel-btn" id="btnCloseSettings">&times;</button>
               </div>
-              <button type="submit" class="btn-add">➕ 추가</button>
-            </form>
 
-            <div class="roles-table-container">
-              <ul class="roles-list-items" id="rolesList">
-                <!-- Dynamically populated role items -->
-              </ul>
+              <div class="yt-mgmt-grid">
+                <!-- Students Column -->
+                <div class="yt-mgmt-box">
+                  <div class="yt-mgmt-box-header">
+                    <h4>👥 학생 명단 (<span id="studentPill">12명</span>)</h4>
+                    <div class="yt-mgmt-btns">
+                      <button id="btnResetStudents" class="yt-btn-small">기본 12명 복원</button>
+                      <button id="btnClearStudents" class="yt-btn-small yt-btn-danger">모두 삭제</button>
+                    </div>
+                  </div>
+                  <form id="addStudentForm" class="yt-add-inline-form">
+                    <input type="text" id="newStudentInput" placeholder="새 학생 이름 입력 (예: 홍길동)" maxlength="10" />
+                    <button type="submit" class="yt-btn-add">추가</button>
+                  </form>
+                  <div class="yt-chips-scroll" id="studentChipsList">
+                    <!-- Student chips injected by JS -->
+                  </div>
+                </div>
+
+                <!-- Roles Column -->
+                <div class="yt-mgmt-box">
+                  <div class="yt-mgmt-box-header">
+                    <h4>📋 학급 역할 (<span id="rolePill">12개</span>)</h4>
+                    <div class="yt-mgmt-btns">
+                      <button id="btnResetRoles" class="yt-btn-small">기본 12개 복원</button>
+                      <button id="btnClearRoles" class="yt-btn-small yt-btn-danger">모두 삭제</button>
+                    </div>
+                  </div>
+                  <form id="addRoleForm" class="yt-add-role-form">
+                    <input type="text" id="newRoleEmoji" class="yt-in-emoji" value="✨" maxlength="2" title="이모지" />
+                    <input type="text" id="newRoleTitle" class="yt-in-title" placeholder="역할 이름" maxlength="15" required />
+                    <input type="text" id="newRoleDuty" class="yt-in-duty" placeholder="하는 일 설명" maxlength="40" />
+                    <button type="submit" class="yt-btn-add">추가</button>
+                  </form>
+                  <div class="yt-roles-scroll" id="rolesList">
+                    <!-- Role rows injected by JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- YouTube Video Cards Feed Header -->
+          <div class="yt-feed-header">
+            <div class="yt-feed-title-wrap">
+              <h2 class="yt-feed-title">우리 반 역할 비디오 피드 📺</h2>
+              <span id="assignedCountNotice" class="yt-feed-badge">배정 대기 중</span>
+            </div>
+            <div class="yt-feed-tools">
+              <button id="btnExportCSV" class="yt-tool-btn" title="CSV 파일로 다운로드">
+                <span>📥</span> CSV 내보내기
+              </button>
+              <button id="btnCopyResult" class="yt-tool-btn" title="클립보드에 텍스트 복사">
+                <span>📋</span> 표 텍스트 복사
+              </button>
             </div>
           </div>
-        </div>
-      </section>
 
-      <!-- Main Action Hero Banner -->
-      <section class="hero-action-section">
-        <div class="action-center">
-          <button id="btnAssignRoles" class="btn-hero-assign">
-            <span class="dice-animation">🎲</span>
-            <span class="hero-btn-text">역할 배정하기</span>
-            <span class="hero-sparkle">✨</span>
-          </button>
-          
-          <div class="sub-actions-bar">
-            <button id="btnShuffleAgain" class="btn-sub" title="배정 결과를 다시 무작위로 섞습니다">
-              <span>🔀</span> 다시 섞기
-            </button>
-            <button id="btnResetAssignment" class="btn-sub" title="배정 상태를 초기화합니다">
-              <span>🧹</span> 배정 초기화
-            </button>
-            <label class="sound-toggle-label" title="배정 효과음 켜기/끄기">
-              <input type="checkbox" id="soundToggle" checked />
-              <span class="sound-icon">🔔</span> 효과음
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <!-- Assignment Notification / Tip -->
-      <div id="noticeBanner" class="notice-banner">
-        <span class="notice-icon">💡</span>
-        <span id="noticeText">위의 <strong>[🎲 역할 배정하기]</strong> 버튼을 누르면 12명의 학생에게 공정하게 역할이 배정됩니다!</span>
+          <!-- YouTube Video Cards Grid -->
+          <section id="roleCardsGrid" class="yt-video-grid">
+            <!-- 12 YouTube-styled Role Cards populated dynamically -->
+          </section>
+        </main>
       </div>
-
-      <!-- Role Cards Grid Container -->
-      <section class="results-container">
-        <div class="results-header">
-          <div class="results-title-wrap">
-            <h2 class="results-title">우리 반 역할 카드 📋</h2>
-            <span id="assignedCountNotice" class="badge-assigned">배정 대기 중</span>
-          </div>
-          <div class="quick-filter-wrap">
-            <button id="btnExportCSV" class="btn-text-mini" title="CSV 파일로 다운로드">📥 CSV 내보내기</button>
-            <button id="btnCopyResult" class="btn-text-mini" title="결과 텍스트 복사">📋 텍스트 복사</button>
-          </div>
-        </div>
-
-        <div id="roleCardsGrid" class="cards-grid">
-          <!-- Dynamically populated 12 role cards -->
-        </div>
-      </section>
     </div>
 
-    <!-- Printable Classroom Bulletin Board View (A4 Optimized) -->
+    <!-- 3. Printable Classroom Bulletin Board (A4 Print Layout) -->
     <div id="printableBulletin" class="printable-bulletin print-only">
       <div class="print-header">
         <div class="print-emblem">🏫</div>
         <div class="print-titles">
-          <h1 id="printClassTitle">우리 반 1인 1역할 조직표</h1>
+          <h1 id="printClassTitle">우리 반 1인 1역할 조직표 (ClassTube)</h1>
           <p class="print-motto">“서로 배려하고 책임을 다하는 행복한 우리 교실”</p>
         </div>
         <div class="print-meta-box">
@@ -193,15 +290,14 @@
         </div>
       </div>
 
-      <!-- Compact 2-Column Table for A4 Fit -->
       <table class="print-table" id="printTable">
         <thead>
           <tr>
             <th style="width: 8%;">번호</th>
-            <th style="width: 20%;">역할 (역할명)</th>
-            <th style="width: 18%;">담당 학생</th>
-            <th style="width: 44%;">실천 내용 (주요 임무)</th>
-            <th style="width: 10%;">서명</th>
+            <th style="width: 22%;">역할 (채널 프로그램)</th>
+            <th style="width: 20%;">담당 크리에이터 (학생)</th>
+            <th style="width: 40%;">실천 내용 (주요 임무)</th>
+            <th style="width: 10%;">확인/서명</th>
           </tr>
         </thead>
         <tbody id="printTableBody">
@@ -211,7 +307,7 @@
 
       <div class="print-footer">
         <div class="print-pledge">
-          ✨ <strong>우리의 다짐:</strong> 내가 맡은 역할에 자부심을 갖고 매일 성실하게 친구들을 돕겠습니다.
+          ✨ <strong>우리들의 다짐:</strong> 내가 맡은 역할에 자부심을 갖고 매일 성실하게 친구들을 돕겠습니다.
         </div>
         <div class="print-signatures">
           <span>담임 교사 확인: ____________________ (인)</span>
@@ -219,41 +315,42 @@
       </div>
     </div>
 
-    <!-- Google Sheets Connect Modal (Load) -->
+    <!-- 4. Google Sheets Load Modal (YouTube Studio Dialog Style) -->
     <div id="sheetLoadModal" class="modal-backdrop hidden">
-      <div class="modal-box">
+      <div class="modal-box yt-modal">
         <div class="modal-header">
           <div class="modal-title-group">
             <span class="modal-icon">🔄</span>
-            <h3>구글 스프레드시트 불러오기</h3>
+            <h3>스프레드시트에서 명단 불러오기</h3>
           </div>
           <button class="modal-close-btn" data-close="sheetLoadModal">&times;</button>
         </div>
         <div class="modal-body">
           <p class="modal-desc">
-            다음 단계에서 연동할 <strong>Google Apps Script (웹 앱 URL)</strong> 또는 스프레드시트 공유 링크를 입력하여 학생과 역할을 원클릭으로 동기화할 수 있습니다.
+            Google 스프레드시트 또는 <strong>Google Apps Script (Web App URL)</strong>에서 학생과 역할 명단을 실시간으로 가져옵니다.
           </p>
 
           <div class="input-field-group">
             <label for="scriptGetUrl">Google Apps Script Web App URL</label>
             <input type="url" id="scriptGetUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-            <span class="input-helper">설정된 Apps Script 주소를 입력하면 자동으로 학생·역할 목록을 불러옵니다.</span>
+            <span class="input-helper">배포된 Apps Script 주소를 입력하면 스프레드시트의 시트 데이터를 즉시 동기화합니다.</span>
           </div>
 
-          <div class="tab-options">
-            <button id="btnFetchFromAppsScript" class="btn-primary-modal">🚀 시트에서 실시간 불러오기</button>
-            <button id="btnLoadSampleData" class="btn-secondary-modal">🔄 기본 12명 예시 데이터 채우기</button>
+          <div class="yt-modal-actions">
+            <button id="btnFetchFromAppsScript" class="yt-btn-primary">
+              <span>🚀</span> 시트에서 실시간 불러오기
+            </button>
+            <button id="btnLoadSampleData" class="yt-btn-secondary">
+              <span>🔄</span> 기본 12명 예시 데이터 채우기
+            </button>
           </div>
 
-          <!-- Apps Script Code Guide Accordion -->
           <details class="code-guide-details">
-            <summary>💡 Apps Script 연동 코드 가이드 (클릭하여 보기)</summary>
+            <summary>💡 Apps Script 연동 코드 보기 (스프레드시트에 붙여넣기)</summary>
             <div class="code-guide-content">
-              <p>스프레드시트 <strong>[확장 프로그램] → [Apps Script]</strong>에 아래 코드를 붙여넣고 [웹 앱으로 배포]하세요:</p>
               <pre><code>function doGet() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const data = sheet.getDataRange().getValues();
-  // A열: 학생 이름, B열: 역할명, C열: 이모지, D열: 하는일
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }</code></pre>
@@ -266,36 +363,36 @@
       </div>
     </div>
 
-    <!-- Google Sheets Save Modal -->
+    <!-- 5. Google Sheets Save Modal (YouTube Studio Upload Dialog Style) -->
     <div id="sheetSaveModal" class="modal-backdrop hidden">
-      <div class="modal-box">
+      <div class="modal-box yt-modal">
         <div class="modal-header">
           <div class="modal-title-group">
             <span class="modal-icon">💾</span>
-            <h3>구글 스프레드시트에 결과 저장</h3>
+            <h3>스프레드시트에 배정 결과 저장</h3>
           </div>
           <button class="modal-close-btn" data-close="sheetSaveModal">&times;</button>
         </div>
         <div class="modal-body">
           <p class="modal-desc">
-            현재 배정된 1인 1역할 결과를 <strong>Google 스프레드시트</strong>에 바로 기록하거나 파일/텍스트로 내보낼 수 있습니다.
+            현재 1인 1역할 배정 결과를 <strong>Google 스프레드시트</strong>로 전송하거나 CSV 파일로 저장합니다.
           </p>
 
           <div class="input-field-group">
             <label for="scriptPostUrl">Google Apps Script Web App URL</label>
             <input type="url" id="scriptPostUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-            <span class="input-helper">배정 결과를 전송할 Apps Script 웹 앱 URL입니다.</span>
+            <span class="input-helper">배정 결과를 수신할 Apps Script 웹 앱 URL입니다.</span>
           </div>
 
-          <div class="save-actions-grid">
-            <button id="btnPostToAppsScript" class="btn-primary-modal">
-              <span>🚀</span> 스프레드시트로 전송
+          <div class="yt-modal-actions grid-3">
+            <button id="btnPostToAppsScript" class="yt-btn-primary">
+              <span>🚀</span> 시트로 전송
             </button>
-            <button id="btnDownloadCSVModal" class="btn-secondary-modal">
-              <span>📥</span> CSV 파일 다운로드
+            <button id="btnDownloadCSVModal" class="yt-btn-secondary">
+              <span>📥</span> CSV 다운로드
             </button>
-            <button id="btnCopyResultModal" class="btn-secondary-modal">
-              <span>📋</span> 클립보드에 표 복사
+            <button id="btnCopyResultModal" class="yt-btn-secondary">
+              <span>📋</span> 클립보드 복사
             </button>
           </div>
 
@@ -310,7 +407,7 @@
       </div>
     </div>
 
-    <!-- Toast Notification for Friendly Feedback -->
+    <!-- Toast Notification (YouTube Snackbar Style) -->
     <div id="toastNotification" class="toast hidden">
       <span id="toastIcon">✨</span>
       <span id="toastMessage">안내 메시지</span>
