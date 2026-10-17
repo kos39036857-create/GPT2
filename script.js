@@ -157,16 +157,94 @@ let state = {
   searchKeyword: ""
 };
 
+/**
+ * 객체, 배열, Smart Chip 등 어떤 형식의 데이터가 들어와도 실제 텍스트 이름을 추출하는 정제 함수
+ * [object Object] 문자열 생성을 원천 차단합니다.
+ */
+function extractCleanString(val) {
+  if (val === null || val === undefined) return "";
+  
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed === "[object Object]") return "";
+    return trimmed;
+  }
+  
+  if (typeof val === "number" || typeof val === "boolean") {
+    return String(val).trim();
+  }
+  
+  if (typeof val === "object") {
+    // 1. 구글 스프레드시트 및 일반적인 JSON 객체 키 우선순위 탐색
+    const priorityKeys = [
+      "studentName", "student", "name", "학생", "이름", "학생명", "성명", "담당학생", "크리에이터",
+      "roleName", "role", "역할", "역할명", "임무", "직책",
+      "v", "value", "val", "text", "title", "label", "duty", "하는일", "활동내용",
+      "formattedValue", "stringValue"
+    ];
+    
+    for (const key of priorityKeys) {
+      if (val[key] !== undefined && val[key] !== null) {
+        const res = extractCleanString(val[key]);
+        if (res && res !== "[object Object]") return res;
+      }
+    }
+    
+    // 2. 배열인 경우
+    if (Array.isArray(val)) {
+      for (const item of val) {
+        const res = extractCleanString(item);
+        if (res && res !== "[object Object]") return res;
+      }
+    }
+    
+    // 3. 기타 속성 중 첫 번째 유효 문자열 탐색
+    for (const k of Object.keys(val)) {
+      const v = val[k];
+      if (typeof v === "string" || typeof v === "number") {
+        const str = String(v).trim();
+        if (str && str !== "[object Object]") return str;
+      } else if (typeof v === "object" && v !== null) {
+        const res = extractCleanString(v);
+        if (res && res !== "[object Object]") return res;
+      }
+    }
+  }
+  
+  const finalStr = String(val).trim();
+  return finalStr === "[object Object]" ? "" : finalStr;
+}
+
 function loadStateFromStorage() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.students && Array.isArray(parsed.students)) state.students = parsed.students;
-      if (parsed.roles && Array.isArray(parsed.roles)) state.roles = parsed.roles;
-      if (parsed.assignments && Array.isArray(parsed.assignments)) state.assignments = parsed.assignments;
+      if (parsed.students && Array.isArray(parsed.students)) {
+        const cleanedStudents = parsed.students
+          .map(s => extractCleanString(s))
+          .filter(s => s && s !== "[object Object]");
+        if (cleanedStudents.length > 0) {
+          state.students = cleanedStudents;
+        } else {
+          state.students = [...DEFAULT_STUDENTS];
+        }
+      }
+      if (parsed.roles && Array.isArray(parsed.roles)) {
+        state.roles = parsed.roles.map(r => ({
+          ...r,
+          name: extractCleanString(r.name) || "학급 역할",
+          duty: extractCleanString(r.duty) || "친구들을 돕고 솔선수범해요."
+        })).filter(r => r.name && r.name !== "[object Object]");
+      }
+      if (parsed.assignments && Array.isArray(parsed.assignments)) {
+        state.assignments = parsed.assignments.map(a => ({
+          roleId: a.roleId,
+          studentName: extractCleanString(a.studentName)
+        })).filter(a => a.studentName && a.studentName !== "[object Object]");
+      }
       if (typeof parsed.isAssigned === "boolean") state.isAssigned = parsed.isAssigned;
-      if (parsed.classTitle) state.classTitle = parsed.classTitle;
+      if (parsed.classTitle) state.classTitle = extractCleanString(parsed.classTitle) || state.classTitle;
       if (parsed.appsScriptUrl) state.appsScriptUrl = parsed.appsScriptUrl;
       if (parsed.theme) state.theme = parsed.theme;
     }
@@ -360,11 +438,12 @@ function updateHeaderStatus() {
   if (sidebarList) {
     sidebarList.innerHTML = "";
     state.students.forEach((name, i) => {
+      const cleanName = extractCleanString(name) || `학생 ${i + 1}`;
       const item = document.createElement("div");
       item.className = "yt-sub-item";
       item.innerHTML = `
-        <span class="yt-sub-avatar">${name.slice(0, 1)}</span>
-        <span>${escapeHtml(name)}</span>
+        <span class="yt-sub-avatar">${cleanName.slice(0, 1)}</span>
+        <span>${escapeHtml(cleanName)}</span>
       `;
       sidebarList.appendChild(item);
     });
@@ -378,11 +457,12 @@ function renderStudentChips() {
   container.innerHTML = "";
 
   state.students.forEach((name, index) => {
+    const cleanName = extractCleanString(name) || `학생 ${index + 1}`;
     const chip = document.createElement("div");
     chip.className = "yt-chip-tag";
     chip.innerHTML = `
-      <span>${index + 1}. ${escapeHtml(name)}</span>
-      <button type="button" data-index="${index}" title="${name} 삭제">&times;</button>
+      <span>${index + 1}. ${escapeHtml(cleanName)}</span>
+      <button type="button" data-index="${index}" title="${cleanName} 삭제">&times;</button>
     `;
     container.appendChild(chip);
   });
@@ -726,33 +806,159 @@ function setupSheetIntegration() {
     });
   });
 
+  // CSV 또는 탭 구분자(TSV/스프레드시트 복사본) 파서
+  function parseCSVOrTSV(text) {
+    if (!text || typeof text !== "string") return [];
+    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+    const rows = [];
+    
+    for (const line of lines) {
+      // 탭(Tab)으로 구분된 경우 (구글 시트/엑셀에서 복사하여 붙여넣을 때)
+      if (line.includes("\t")) {
+        rows.push(line.split("\t").map(cell => cell.trim().replace(/^["']|["']$/g, "")));
+        continue;
+      }
+      
+      // 쉼표(CSV) 파싱 (따옴표 처리 포함)
+      const cells = [];
+      let current = "";
+      let insideQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (insideQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if (char === ',' && !insideQuotes) {
+          cells.push(current.trim().replace(/^["']|["']$/g, ""));
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      cells.push(current.trim().replace(/^["']|["']$/g, ""));
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  // 구글 스프레드시트 링크에서 문서 ID 및 시트 GID 추출
+  function extractSpreadsheetId(url) {
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+  }
+  function extractGid(url) {
+    const match = url.match(/[#&?]gid=([0-9]+)/);
+    return match ? match[1] : null;
+  }
+
   // [시트에서 실시간 불러오기]
   document.getElementById("btnFetchFromAppsScript").addEventListener("click", async () => {
-    const url = inputGetUrl.value.trim();
-    if (!url) {
-      alert("Apps Script 웹 앱 URL을 입력해 주세요!");
+    const rawInput = inputGetUrl.value.trim();
+    if (!rawInput) {
+      alert("구글 스프레드시트 공유 링크 또는 Apps Script 웹 앱 URL을 입력해 주세요!");
       return;
     }
-    state.appsScriptUrl = url;
+    state.appsScriptUrl = rawInput;
     saveStateToStorage();
     showToast("스프레드시트에서 데이터를 동기화하는 중...", "🔄");
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP 상태 코드: ${response.status}`);
-      const data = await response.json();
+    const spreadsheetId = extractSpreadsheetId(rawInput);
 
-      if (Array.isArray(data)) {
+    // 경우 1: 사용자가 구글 스프레드시트 웹 링크(https://docs.google.com/spreadsheets/d/...)를 입력한 경우
+    if (spreadsheetId) {
+      const gid = extractGid(rawInput);
+      const csvEndpoint = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv${gid ? `&gid=${gid}` : ''}`;
+
+      try {
+        const resp = await fetch(csvEndpoint);
+        if (!resp.ok) throw new Error(`HTTP 상태 코드: ${resp.status}`);
+        const csvText = await resp.text();
+
+        // 구글 로그인 화면 HTML이 반환된 경우 권한 안내
+        if (csvText.startsWith("<!DOCTYPE") || csvText.includes("<html")) {
+          throw new Error("스프레드시트 공유 권한이 '링크가 있는 모든 사용자'로 설정되어 있는지 확인해 주세요.");
+        }
+
+        const rows = parseCSVOrTSV(csvText);
+        if (rows.length === 0) {
+          throw new Error("스프레드시트에서 데이터를 찾을 수 없습니다.");
+        }
+
+        parseSheetData(rows);
+        modalLoad.classList.add("hidden");
+        showToast(`🎉 스프레드시트 연동 성공! (학생 ${state.students.length}명, 역할 ${state.roles.length}개)`, "✅");
+        return;
+      } catch (err) {
+        console.warn("GViz CSV 불러오기 실패, 대안 시도:", err);
+        // 대안: Google Export CSV 엔드포인트
+        try {
+          const exportUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv${gid ? `&gid=${gid}` : ''}`;
+          const resp2 = await fetch(exportUrl);
+          if (!resp2.ok) throw new Error(`HTTP 상태 코드: ${resp2.status}`);
+          const csvText2 = await resp2.text();
+          const rows2 = parseCSVOrTSV(csvText2);
+          parseSheetData(rows2);
+          modalLoad.classList.add("hidden");
+          showToast(`🎉 스프레드시트 연동 성공! (학생 ${state.students.length}명)`, "✅");
+          return;
+        } catch (err2) {
+          alert(`스프레드시트를 불러오지 못했습니다:\n${err.message}\n\n💡 스프레드시트 우측 상단 [공유] 버튼에서 [일반 액세스: 링크가 있는 모든 사용자(뷰어)]로 설정되어 있는지 확인해 주세요.\n\n또는 하단의 [📋 시트에서 복사하여 바로 붙여넣기]를 이용하시면 즉시 적용됩니다!`);
+          return;
+        }
+      }
+    }
+
+    // 경우 2: Google Apps Script 웹 앱 URL을 입력한 경우
+    try {
+      const response = await fetch(rawInput);
+      if (!response.ok) throw new Error(`HTTP 상태 코드: ${response.status}`);
+      const textResponse = await response.text();
+
+      // Apps Script가 JSON이 아닌 HTML 에러 페이지를 반환한 경우
+      if (textResponse.trim().startsWith("<!DOCTYPE") || textResponse.trim().startsWith("<html")) {
+        alert("입력하신 Apps Script 주소에서 HTML 웹 페이지가 응답되었습니다.\n\n💡 구글 스프레드시트 공유 권한을 '링크가 있는 모든 사용자'로 설정하셨다면, 복잡한 Apps Script 대신 브라우저 주소창의 스프레드시트 링크(https://docs.google.com/spreadsheets/d/...)를 그대로 입력하시면 원클릭으로 바로 불러와집니다!");
+        return;
+      }
+
+      const data = JSON.parse(textResponse);
+      if (data && (Array.isArray(data) || typeof data === "object")) {
         parseSheetData(data);
         modalLoad.classList.add("hidden");
-        showToast("🎉 스프레드시트와 성공적으로 동기화되었습니다!", "✅");
+        showToast(`🎉 스프레드시트에서 학생 ${state.students.length}명, 역할 ${state.roles.length}개를 성공적으로 불러왔습니다!`, "✅");
       } else {
-        throw new Error("올바른 배열 형식이 아닙니다.");
+        throw new Error("올바른 데이터 형식이 아닙니다.");
       }
     } catch (err) {
-      alert(`불러오기 실패: ${err.message}\nApps Script 배포 시 '웹 앱 액세스: 모든 사용자(Anyone)' 권한을 확인하세요.`);
+      alert(`불러오기 실패: ${err.message}\n\n💡 구글 스프레드시트 주소(https://docs.google.com/spreadsheets/d/...)를 입력창에 붙여넣으시면 Apps Script 없이도 즉시 불러올 수 있습니다.`);
     }
   });
+
+  // [📋 붙여넣은 명단 즉시 적용]
+  const btnApplyDirectPaste = document.getElementById("btnApplyDirectPaste");
+  const directPasteInput = document.getElementById("directPasteInput");
+  if (btnApplyDirectPaste && directPasteInput) {
+    btnApplyDirectPaste.addEventListener("click", () => {
+      const pastedText = directPasteInput.value.trim();
+      if (!pastedText) {
+        alert("스프레드시트에서 복사한 내용을 먼저 붙여넣어 주세요!");
+        return;
+      }
+      const rows = parseCSVOrTSV(pastedText);
+      if (rows.length === 0) {
+        alert("붙여넣은 내용에서 데이터를 인식하지 못했습니다.");
+        return;
+      }
+      parseSheetData(rows);
+      modalLoad.classList.add("hidden");
+      directPasteInput.value = "";
+      showToast(`🎉 붙여넣은 명단 적용 완료! (학생 ${state.students.length}명, 역할 ${state.roles.length}개)`, "📋");
+    });
+  }
 
   // [기본 12명 예시 채우기]
   document.getElementById("btnLoadSampleData").addEventListener("click", () => {
@@ -822,36 +1028,139 @@ function setupSheetIntegration() {
   document.getElementById("btnCopyResult").addEventListener("click", copyTableToClipboard);
 }
 
-function parseSheetData(rows) {
-  const newStudents = new Set();
+/**
+ * 2D 배열, 객체 배열, Google Visualization 응답 등 어떤 형태의 스프레드시트 데이터도
+ * [object Object] 현상 없이 순수한 학생 이름 및 역할로 완벽 변환합니다.
+ */
+function parseSheetData(rawData) {
+  let rows = rawData;
+
+  // 1. 객체로 래핑되어 있는 경우 언래핑
+  if (rawData && typeof rawData === "object" && !Array.isArray(rawData)) {
+    if (Array.isArray(rawData.data)) rows = rawData.data;
+    else if (Array.isArray(rawData.values)) rows = rawData.values;
+    else if (Array.isArray(rawData.results)) rows = rawData.results;
+    else if (Array.isArray(rawData.rows)) rows = rawData.rows;
+    else if (rawData.table && Array.isArray(rawData.table.rows)) rows = rawData.table.rows;
+    else if (Array.isArray(rawData.students)) {
+      rows = rawData.students.map((st, i) => ({
+        student: st,
+        role: Array.isArray(rawData.roles) ? rawData.roles[i] : null
+      }));
+    } else {
+      rows = Object.values(rawData);
+    }
+  }
+
+  if (!Array.isArray(rows)) {
+    throw new Error("스프레드시트 데이터에서 행 목록을 찾을 수 없습니다.");
+  }
+
+  const newStudents = [];
   const newRoles = [];
+  const newAssignments = [];
 
   rows.forEach((row, index) => {
-    if (index === 0 && (row[0] === "학생" || row[0] === "이름" || row[1] === "역할")) return;
-    const student = (row[0] || "").toString().trim();
-    const roleName = (row[1] || "").toString().trim();
-    const emoji = (row[2] || "").toString().trim() || "✨";
-    const duty = (row[3] || "").toString().trim();
+    if (!row) return;
 
-    if (student) newStudents.add(student);
-    if (roleName) {
+    let student = "";
+    let roleName = "";
+    let emoji = "";
+    let duty = "";
+
+    // 형태 A: 2D 배열 형태 (예: [['김민준', '칠판 도우미', '🧹', '하는일']])
+    if (Array.isArray(row)) {
+      student = extractCleanString(row[0]);
+      roleName = extractCleanString(row[1]);
+      emoji = extractCleanString(row[2]);
+      duty = extractCleanString(row[3]);
+    }
+    // 형태 B: Google Visualization 응답 { c: [{ v: '김민준' }, ...] }
+    else if (row.c && Array.isArray(row.c)) {
+      student = extractCleanString(row.c[0]);
+      roleName = extractCleanString(row.c[1]);
+      emoji = extractCleanString(row.c[2]);
+      duty = extractCleanString(row.c[3]);
+    }
+    // 형태 C: 객체 배열 (예: { 학생: '김민준', 역할: '칠판 도우미' } 또는 { name: '김민준' })
+    else if (typeof row === "object") {
+      student = extractCleanString(
+        row.studentName || row.student || row.name ||
+        row["학생"] || row["이름"] || row["학생명"] || row["성명"] || row["담당학생"] || row["크리에이터"] ||
+        row[0]
+      );
+      roleName = extractCleanString(
+        row.roleName || row.role || row.title ||
+        row["역할"] || row["역할명"] || row["직책"] || row["담당역할"] ||
+        row[1]
+      );
+      emoji = extractCleanString(
+        row.emoji || row.icon || row["이모지"] || row["아이콘"] ||
+        row[2]
+      );
+      duty = extractCleanString(
+        row.duty || row.description || row.desc ||
+        row["하는일"] || row["임무"] || row["활동내용"] ||
+        row[3]
+      );
+    }
+    // 형태 D: 단순 문자열 배열 (학생 이름만 있는 경우)
+    else if (typeof row === "string" || typeof row === "number") {
+      student = extractCleanString(row);
+    }
+
+    // 표 헤더 행 건너뛰기
+    const isHeader = index === 0 && (
+      student === "학생" || student === "이름" || student === "학생명" ||
+      student === "name" || student === "student" || student === "번호" ||
+      student === "순번" || student === "index" || roleName === "역할" || roleName === "역할명"
+    );
+    if (isHeader) return;
+
+    if (student && student !== "[object Object]") {
+      newStudents.push(student);
+    }
+
+    if (roleName && roleName !== "[object Object]") {
+      const roleId = `role-sheet-${index}`;
       newRoles.push({
-        id: `role-sheet-${index}`,
+        id: roleId,
         name: roleName,
-        emoji: emoji,
-        duty: duty || "학급을 위해 봉사해요.",
+        emoji: emoji || "✨",
+        duty: duty || "학급을 위해 솔선수범해요.",
         category: "living",
         duration: "상시 활동",
         theme: THEME_CYCLE[newRoles.length % THEME_CYCLE.length]
       });
+
+      if (student && student !== "[object Object]") {
+        newAssignments.push({
+          roleId: roleId,
+          studentName: student
+        });
+      }
     }
   });
 
-  if (newStudents.size > 0) state.students = Array.from(newStudents);
-  if (newRoles.length > 0) state.roles = newRoles;
+  // 중복 학생 제거 및 순서 보존
+  const uniqueStudents = [...new Set(newStudents)];
 
-  state.assignments = [];
-  state.isAssigned = false;
+  if (uniqueStudents.length > 0) {
+    state.students = uniqueStudents;
+  }
+  if (newRoles.length > 0) {
+    state.roles = newRoles;
+  }
+
+  // 시트에 학생과 역할이 모두 매칭되어 저장되어 있던 경우 배정 상태 복원
+  if (newAssignments.length > 0 && newAssignments.length === state.roles.length) {
+    state.assignments = newAssignments;
+    state.isAssigned = true;
+  } else {
+    state.assignments = [];
+    state.isAssigned = false;
+  }
+
   saveStateToStorage();
   renderStudentChips();
   renderRolesList();
